@@ -807,7 +807,7 @@ N.B. Сразу сохраним запись в БД, чтобы коннект
 
 Чтобы зарегистрировать конфигурацию коннектора в Kafka Connect необходимо отправить ее по REST:
 ```shell
- curl -s -S -XPOST -H Accept:application/json -H Content-Type:application/json http://localhost:8083/connectors/ -d @debezium-config.json
+curl -sS --json @debezium-config.json http://localhost:8083/connectors/
 ```
 
 Далее требуется сгенерировать Avro класс. Чтобы понять, какую схему сгенерировал Debezium, ее
@@ -903,7 +903,7 @@ class AvroRecord(
 После этого необходимо сгенерировать Avro файлы с помощью Gradle плагина: `id 'com.github.davidmc24.gradle.plugin.avro' version "1.9.1"`
 
 ```shell
-./gradlew clean build -x test
+./gradlew clean avroCodeGeneration
 ```
 
 Теперь можно запустить приложение Spring Boot. Оно каждую секунду будет сохранять в БД новый Product,

@@ -1,4 +1,5 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.apache.avro.tool.SpecificCompilerTool
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 buildscript {
     repositories {
@@ -10,28 +11,37 @@ buildscript {
             url = "https://jitpack.io"
         }
     }
+    dependencies {
+        classpath group: 'org.apache.avro', name: 'avro-tools', version: '1.12.0'
+    }
 }
 
 plugins {
-    id 'org.springframework.boot' version '3.2.0'
-    id 'io.spring.dependency-management' version '1.1.4'
-    id 'org.jetbrains.kotlin.jvm' version '1.9.20'
-    id 'org.jetbrains.kotlin.plugin.spring' version '1.9.20'
-    id 'org.jetbrains.kotlin.plugin.jpa' version '1.9.20'
-    id "org.jetbrains.kotlin.plugin.allopen" version "1.9.20"
-    id 'com.github.imflog.kafka-schema-registry-gradle-plugin' version "1.12.0"
-    id 'com.github.davidmc24.gradle.plugin.avro' version "1.9.1"
+    id "org.springframework.boot" version "3.4.2"
+    id "io.spring.dependency-management" version "1.1.7"
+    id "org.jetbrains.kotlin.jvm" version "1.9.25"
+    id "org.jetbrains.kotlin.plugin.spring" version "1.9.25"
+    id "org.jetbrains.kotlin.plugin.jpa" version "1.9.25"
+    id "org.jetbrains.kotlin.plugin.allopen" version "2.1.10"
+    id "com.github.imflog.kafka-schema-registry-gradle-plugin" version "2.2.0"
+
 }
+
+def avroSchemasDir = "src/main/avro"
+def avroCodeGenerationDir = "build/generated-main-avro-java"
+
+// Add the generated Avro Java code to the Gradle source files.
+sourceSets.main.java.srcDirs += [avroCodeGenerationDir]
 
 allOpen {
     annotation("jakarta.persistence.Entity")
 }
 
-group = 'ru.aasmc'
-version = '0.0.1-SNAPSHOT'
+group = "ru.aasmc"
+version = "0.0.1-SNAPSHOT"
 
 java {
-    sourceCompatibility = '17'
+    sourceCompatibility = "17"
 }
 
 repositories {
@@ -45,32 +55,52 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
-    implementation 'org.jetbrains.kotlin:kotlin-reflect'
-    implementation 'org.springframework.kafka:spring-kafka'
-    implementation("io.confluent:kafka-avro-serializer:7.5.2")
-    implementation("org.apache.avro:avro:1.11.0")
-    runtimeOnly 'org.postgresql:postgresql'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation "org.springframework.boot:spring-boot-starter-data-jpa"
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "com.fasterxml.jackson.module:jackson-module-kotlin"
+    implementation "org.jetbrains.kotlin:kotlin-reflect"
+    implementation "org.springframework.kafka:spring-kafka"
+    implementation "io.confluent:kafka-avro-serializer:7.8.0"
+    compileOnly "org.apache.avro:avro:1.12.0"
+    runtimeOnly "org.postgresql:postgresql"
+}
+
+configurations {
+    compileOnly {
+        exclude group: 'commons-logging', module: 'commons-logging'
+    }
+}
+
+tasks.register('avroCodeGeneration') {
+    // Define the task inputs and outputs for the Gradle up-to-date checks.
+    inputs.dir(avroSchemasDir)
+    outputs.dir(avroCodeGenerationDir)
+    // The Avro code generation logs to the standard streams. Redirect the standard streams to the Gradle log.
+    logging.captureStandardOutput(LogLevel.INFO)
+    logging.captureStandardError(LogLevel.ERROR)
+    doLast {
+        // Run the Avro code generation.
+        new SpecificCompilerTool().run(System.in, System.out, System.err, List.of(
+                "-encoding", "UTF-8",
+                "-string",
+                "-fieldVisibility", "private",
+                "-noSetters",
+                "schema", "$projectDir/$avroSchemasDir".toString(), "$projectDir/$avroCodeGenerationDir".toString()
+        ))
+    }
 }
 
 schemaRegistry {
-    url = 'http://localhost:8081'
+    url = "http://localhost:8081"
     quiet = true
     register {
-        subject('debezium.public.products-value', 'src/main/avro/product.avsc', 'AVRO')
+        subject("debezium.public.products-value", "src/main/avro/product.avsc", "AVRO")
     }
 }
 
-tasks.withType(KotlinCompile) {
-    kotlinOptions {
-        freeCompilerArgs += '-Xjsr305=strict'
-        jvmTarget = '17'
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll "-Xjsr305=strict"
+        jvmTarget.set(JvmTarget.JVM_17)
     }
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
 }
