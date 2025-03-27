@@ -31,4 +31,8 @@ spring:
         schema.registry.url: http://localhost:8081
       auto-offset-reset: earliest
       enable-auto-commit: true
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: [ "prometheus" ]

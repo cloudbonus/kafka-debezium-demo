@@ -97,5 +97,22 @@ services:
       -c max_wal_senders=1
       -c max_replication_slots=1
 
+  prometheus:
+    image: prom/prometheus:v2.53.4
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+
 volumes:
   database:
